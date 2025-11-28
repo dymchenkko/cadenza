@@ -13,3 +13,5 @@ solana-client = "1.18.0"
 solana-cli-config = "1.18.0" 
 spl-token = { version = "4.0", features = ["no-entrypoint"] }
 anyhow = "1.0" # Simplifies error handling
+walkdir = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
