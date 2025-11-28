@@ -14,15 +14,14 @@ pub async fn start_harness(config_path: &str) -> Result<Child> {
 
     let validator_child = start_validator(config.rpc_port, config.reset_ledger).await?;
 
-    todo!("Loop through config.wallets, generate keypairs, save to disk, and request airdrops.");
+    // TODO: Implement wallet provisioning
+    // Loop through config.wallets, generate keypairs, save to disk, and request airdrops.
 
-    todo!(
-        "Loop through config.programs, run `solana program deploy` using tokio::process::Command."
-    );
+    // TODO: Implement program deployment
+    // Loop through config.programs, run `solana program deploy` using tokio::process::Command.
 
-    todo!(
-        "Loop through config.tokens, create mints, create associated token accounts, and mint tokens."
-    );
+    // TODO: Implement token creation
+    // Loop through config.tokens, create mints, create associated token accounts, and mint tokens.
 
     println!(
         "\n✅ Cadenza setup complete. Validator is running on http://127.0.0.1:{}",
@@ -37,6 +36,8 @@ pub async fn start_harness(config_path: &str) -> Result<Child> {
 async fn start_validator(rpc_port: u16, reset: bool) -> Result<Child> {
     let mut command = Command::new("solana-test-validator");
     command
+        .arg("--ledger")
+        .arg("test-ledger")
         .arg("--rpc-port")
         .arg(rpc_port.to_string())
         .arg("--gossip-port")

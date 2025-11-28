@@ -1,7 +1,7 @@
 use crate::setup::start_harness;
+use crate::snapshot::{create_snapshot, list_snapshots, load_snapshot};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-//use crate::snapshot::{create_snapshot, load_snapshot}; // Placeholder for snapshot functions
 use tokio::signal;
 
 mod config;
@@ -19,19 +19,25 @@ struct Cli {
 enum Commands {
     /// Starts the local validator and provisions the full environment
     Start {
-        #[arg(short, long)]
+        /// Path to the harness config file (defaults to harness-config.json, which is restored from snapshots)
+        #[arg(short, long, default_value = "cadenza-config.json")]
         config_path: String,
     },
-    /*/// Saves the current ledger state and keypairs to a named snapshot
+    /// Saves the current ledger state and keypairs to a named snapshot
     Snapshot {
         /// Name of the snapshot to create
         name: String,
+        /// Path to the harness config file (defaults to harness-config.json)
+        #[arg(short, long, default_value = "cadenza-config.json")]
+        config_path: String,
     },
-    /// Loads a saved snapshot and starts the validator from that state
+    /// Loads a saved snapshot and restores the ledger state
     Load {
         /// Name of the snapshot to load
         name: String,
-    }*/
+    },
+    /// Lists all available snapshots
+    ListSnapshots,
 }
 
 #[tokio::main]
@@ -55,14 +61,26 @@ async fn main() -> Result<()> {
 
             let _ = validator_child.wait().await;
             println!("✅ Validator stopped.");
-        } /*Commands::Snapshot { name } => {
-              println!("Creating snapshot: {}", name);
-              create_snapshot(&name)?;
-          }*/
-          /*Commands::Load { name } => {
-              println!("Loading state from snapshot: {}", name);
-              load_snapshot(&name)?;
-          }*/
+        }
+        Commands::Snapshot { name, config_path } => {
+            println!("Creating snapshot: {}", name);
+            create_snapshot(&name, &config_path)?;
+        }
+        Commands::Load { name } => {
+            println!("Loading state from snapshot: {}", name);
+            load_snapshot(&name)?;
+        }
+        Commands::ListSnapshots => {
+            let snapshots = list_snapshots()?;
+            if snapshots.is_empty() {
+                println!("No snapshots found.");
+            } else {
+                println!("Available snapshots:");
+                for snapshot in snapshots {
+                    println!("  - {}", snapshot);
+                }
+            }
+        }
     }
 
     Ok(())
