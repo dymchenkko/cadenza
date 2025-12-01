@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install Solana CLI
+        shell: bash
+        run: |
+          set -eo pipefail
+          curl -sSfL https://release.solana.com/v1.18.0/install | sh -s - -y
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          solana --version
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: List snapshots (should not fail if none exist)
+        run: cargo run -- list-snapshots
+
+      - name: Create snapshot from existing test-ledger
+        run: |
+          # Ensure we start clean
+          rm -rf snapshots/ci-state || true
+          cargo run -- snapshot ci-state
+
+      - name: Verify snapshot appears in list
+        run: |
+          cargo run -- list-snapshots | tee /tmp/snapshots.txt
+          grep -q "ci-state" /tmp/snapshots.txt
+
+      - name: Load snapshot
+        run: cargo run -- load ci-state
+
+      - name: Start validator using loaded snapshot (smoke test)
+        shell: bash
+        run: |
+          set -eo pipefail
+          # Run start for a short period to ensure it launches successfully.
+          # timeout will terminate it after 25s if it's still running.
+          timeout 25s cargo run -- start
+
+
