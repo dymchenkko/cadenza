@@ -1,4 +1,5 @@
 {
+  "cluster": "local",
   "rpcPort": 8899,
   "resetLedger": true,
   "wallets": [

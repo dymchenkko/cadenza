@@ -47,27 +47,34 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Start { config_path } => {
             println!("Starting Cadenza harness setup...");
-            let mut validator_child = start_harness(&config_path).await?;
+            let validator_child = start_harness(&config_path).await?;
 
-            signal::ctrl_c()
-                .await
-                .context("Failed to listen for Ctrl+C signal")?;
+            if let Some(mut child) = validator_child {
+                // Local cluster: keep the validator running until Ctrl+C
+                signal::ctrl_c()
+                    .await
+                    .context("Failed to listen for Ctrl+C signal")?;
 
-            println!("\n🛑 Stopping validator...");
-            validator_child
-                .kill()
-                .await
-                .context("Failed to stop validator process")?;
+                println!("\n🛑 Stopping validator...");
+                child
+                    .kill()
+                    .await
+                    .context("Failed to stop validator process")?;
 
-            let _ = validator_child.wait().await;
-            println!("✅ Validator stopped.");
+                let _ = child.wait().await;
+                println!("✅ Validator stopped.");
+            } else {
+                println!(
+                    "Cadenza finished provisioning on remote cluster; no local validator to manage."
+                );
+            }
         }
         Commands::Snapshot { name, config_path } => {
-            println!("Creating snapshot: {}", name);
+            println!("Creating snapshot: {name}");
             create_snapshot(&name, &config_path)?;
         }
         Commands::Load { name } => {
-            println!("Loading state from snapshot: {}", name);
+            println!("Loading state from snapshot: {name}");
             load_snapshot(&name)?;
         }
         Commands::ListSnapshots => {
@@ -77,7 +84,7 @@ async fn main() -> Result<()> {
             } else {
                 println!("Available snapshots:");
                 for snapshot in snapshots {
-                    println!("  - {}", snapshot);
+                    println!("  - {snapshot}");
                 }
             }
         }
