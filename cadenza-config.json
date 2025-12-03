@@ -1,27 +1,19 @@
 {
+  "cluster": "devnet",
   "rpcPort": 8899,
   "resetLedger": true,
   "wallets": [
-    { "name": "alice_payer", "solBalance": 50.0 },
-    { "name": "bob_user", "solBalance": 1.0 }
+    {
+      "name": "hello_payer",
+      "solBalance": 1.0
+    }
   ],
   "programs": [
     {
-      "name": "staking_vault",
-      "binaryPath": "./target/deploy/staking_vault.so",
-      "programIdPath": "./keys/staking_vault_id.json"
+      "name": "hello_world",
+      "binaryPath": "./target/deploy/hello_world.so",
+      "programIdPath": "./keys/hello_world_id.json"
     }
   ],
-  "tokens": [
-    {
-      "name": "USDC_DEV",
-      "decimals": 6,
-      "mintAuthorityWallet": "alice_payer",
-      "recipients": [
-        { "walletName": "alice_payer", "amount": 10000000000 },
-        { "walletName": "bob_user", "amount": 5000000 }
-      ]
-    }
-  ]
+  "tokens": []
 }
-

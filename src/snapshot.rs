@@ -34,8 +34,7 @@ pub fn create_snapshot(name: &str, config_path: &str) -> Result<()> {
     let snapshot_dir = PathBuf::from(SNAPSHOTS_DIR).join(name);
     if snapshot_dir.exists() {
         return Err(anyhow::anyhow!(
-            "Snapshot '{}' already exists. Use a different name or delete the existing snapshot first.",
-            name
+            "Snapshot '{name}' already exists. Use a different name or delete the existing snapshot first."
         ));
     }
     fs::create_dir_all(&snapshot_dir).context("Failed to create snapshot directory")?;
@@ -43,8 +42,7 @@ pub fn create_snapshot(name: &str, config_path: &str) -> Result<()> {
     let ledger_path = Path::new(LEDGER_DIR);
     if !ledger_path.exists() {
         return Err(anyhow::anyhow!(
-            "Ledger directory '{}' does not exist. Start the validator first to create a ledger.",
-            LEDGER_DIR
+            "Ledger directory '{LEDGER_DIR}' does not exist. Start the validator first to create a ledger."
         ));
     }
 
@@ -78,7 +76,7 @@ pub fn create_snapshot(name: &str, config_path: &str) -> Result<()> {
 pub fn load_snapshot(name: &str) -> Result<()> {
     let snapshot_dir = PathBuf::from(SNAPSHOTS_DIR).join(name);
     if !snapshot_dir.exists() {
-        return Err(anyhow::anyhow!("Snapshot '{}' does not exist", name));
+        return Err(anyhow::anyhow!("Snapshot '{name}' does not exist"));
     }
 
     if is_validator_running()? {
@@ -98,7 +96,7 @@ pub fn load_snapshot(name: &str) -> Result<()> {
     if current_ledger.exists() {
         let backup_name = format!("backup-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
         let backup_path = PathBuf::from(SNAPSHOTS_DIR).join(&backup_name);
-        println!("📦 Backing up current ledger to '{}'...", backup_name);
+        println!("📦 Backing up current ledger to '{backup_name}'...");
         copy_directory(current_ledger, &backup_path).context("Failed to backup current ledger")?;
         println!("✅ Backup complete");
     }
@@ -112,8 +110,7 @@ pub fn load_snapshot(name: &str) -> Result<()> {
             .context("Failed to restore ledger from snapshot")?;
     } else {
         return Err(anyhow::anyhow!(
-            "Snapshot '{}' does not contain a ledger directory",
-            name
+            "Snapshot '{name}' does not contain a ledger directory"
         ));
     }
 
@@ -127,7 +124,7 @@ pub fn load_snapshot(name: &str) -> Result<()> {
                 chrono::Utc::now().format("%Y%m%d-%H%M%S")
             );
             fs::copy(config_dest, &backup_config).context("Failed to backup current config")?;
-            println!("📝 Backed up current config to '{}'", backup_config);
+            println!("📝 Backed up current config to '{backup_config}'");
         }
         fs::copy(&snapshot_config, config_dest).context("Failed to restore config")?;
         println!("📝 Restored config from snapshot");
@@ -140,7 +137,7 @@ pub fn load_snapshot(name: &str) -> Result<()> {
         );
     }
 
-    println!("✅ Snapshot '{}' loaded successfully", name);
+    println!("✅ Snapshot '{name}' loaded successfully");
     Ok(())
 }
 
@@ -207,8 +204,7 @@ fn validate_snapshot_name(name: &str) -> Result<()> {
     }
     if name.contains('/') || name.contains('\\') || name == "." || name == ".." {
         return Err(anyhow::anyhow!(
-            "Invalid snapshot name: '{}'. Name cannot contain path separators or be '.' or '..'",
-            name
+            "Invalid snapshot name: '{name}'. Name cannot contain path separators or be '.' or '..'"
         ));
     }
     Ok(())

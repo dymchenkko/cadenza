@@ -1,6 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+pub enum Cluster {
+    #[serde(alias = "localnet")]
+    #[default]
+    Local,
+    Devnet,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WalletConfig {
@@ -8,7 +16,6 @@ pub struct WalletConfig {
     pub sol_balance: f64, // Use f64 and convert to lamports later for precision
 }
 
-// --- Program Configuration (Idea 1) ---
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ProgramConfig {
@@ -17,7 +24,7 @@ pub struct ProgramConfig {
     pub program_id_path: String,
 }
 
-// --- Token Configuration (Idea 2) ---
+// --- Token Configuration ---
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenRecipient {
@@ -34,10 +41,11 @@ pub struct TokenConfig {
     pub recipients: Vec<TokenRecipient>,
 }
 
-// --- Main Harness Configuration ---
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct HarnessConfig {
+    #[serde(default)]
+    pub cluster: Cluster,
     pub rpc_port: u16,
     pub reset_ledger: bool,
     pub wallets: Vec<WalletConfig>,
