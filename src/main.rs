@@ -22,6 +22,8 @@ enum Commands {
         /// Path to the harness config file (defaults to harness-config.json, which is restored from snapshots)
         #[arg(short, long, default_value = "cadenza-config.json")]
         config_path: String,
+        #[arg(long)]
+        no_block: bool,
     },
     /// Saves the current ledger state and keypairs to a named snapshot
     Snapshot {
@@ -45,11 +47,19 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Start { config_path } => {
+        Commands::Start {
+            config_path,
+            no_block,
+        } => {
             println!("Starting Cadenza harness setup...");
             let validator_child = start_harness(&config_path).await?;
 
             if let Some(mut child) = validator_child {
+                if no_block {
+                    println!("Local validator started in non-blocking mode (no_block=true).");
+                    return Ok(());
+                }
+
                 // Local cluster: keep the validator running until Ctrl+C
                 signal::ctrl_c()
                     .await
