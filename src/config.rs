@@ -47,6 +47,8 @@ pub struct HarnessConfig {
     #[serde(default)]
     pub cluster: Cluster,
     pub rpc_port: u16,
+    #[serde(default)]
+    pub faucet_port: Option<u16>,
     pub reset_ledger: bool,
     pub wallets: Vec<WalletConfig>,
     pub programs: Vec<ProgramConfig>,

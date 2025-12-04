@@ -1,0 +1,23 @@
+{
+  "cluster": "Local",
+  "rpcPort": 8899,
+  "faucetPort": 9901,
+  "resetLedger": true,
+  "wallets": [
+    { "name": "admin", "solBalance": 10 },
+    { "name": "alice", "solBalance": 2 }
+  ],
+  "programs": [],
+  "tokens": [
+    {
+      "name": "USDC",
+      "decimals": 6,
+      "mintAuthorityWallet": "admin",
+      "recipients": [
+        { "walletName": "alice", "amount": 1000000 }
+      ]
+    }
+  ]
+}
+
+

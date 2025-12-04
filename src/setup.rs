@@ -3,7 +3,13 @@ use anyhow::{anyhow, Context, Result};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::commitment_config::CommitmentConfig;
 use solana_sdk::native_token::sol_to_lamports;
+use solana_sdk::program_pack::Pack;
 use solana_sdk::signature::{read_keypair_file, write_keypair_file, Keypair, Signer};
+use solana_sdk::system_instruction;
+use solana_sdk::transaction::Transaction;
+use spl_associated_token_account::{get_associated_token_address, instruction as ata_instruction};
+use spl_token::instruction as token_instruction;
+use spl_token::state::Mint;
 use std::fs;
 use std::path::Path;
 use std::process::Stdio;
@@ -20,16 +26,15 @@ pub async fn start_harness(config_path: &str) -> Result<Option<Child>> {
     match config.cluster {
         Cluster::Local => {
             let rpc_url = format!("{}:{}", LOCAL_RPC_URL, config.rpc_port);
-            let validator_child = start_validator(config.rpc_port, config.reset_ledger).await?;
+            let faucet_port = config.faucet_port.unwrap_or(9900);
+            let validator_child =
+                start_validator(config.rpc_port, faucet_port, config.reset_ledger).await?;
             let client =
                 RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::processed());
 
             provision_wallets(&client, &config, Cluster::Local)?;
+            provision_tokens(&client, &config, Cluster::Local)?;
             deploy_programs(&rpc_url, &config, Cluster::Local).await?;
-
-            // TODO: Implement token creation for local validator
-            // Loop through config.tokens, create mints, create associated token accounts,
-            // and mint tokens using the local validator RPC.
 
             println!(
                 "\n✅ Cadenza (local) setup complete. Validator is running on http://127.0.0.1:{}",
@@ -47,9 +52,8 @@ pub async fn start_harness(config_path: &str) -> Result<Option<Child>> {
                 RpcClient::new_with_commitment(rpc_url.clone(), CommitmentConfig::processed());
 
             provision_wallets(&client, &config, Cluster::Devnet)?;
+            provision_tokens(&client, &config, Cluster::Devnet)?;
             deploy_programs(&rpc_url, &config, Cluster::Devnet).await?;
-
-            // TODO: Implement token creation & minting against devnet RPC if desired.
 
             println!("\n✅ Cadenza devnet setup complete.");
             println!("   RPC URL: {rpc_url}");
@@ -60,7 +64,7 @@ pub async fn start_harness(config_path: &str) -> Result<Option<Child>> {
 }
 
 // Function 1: Starts the solana-test-validator process
-async fn start_validator(rpc_port: u16, reset: bool) -> Result<Child> {
+async fn start_validator(rpc_port: u16, faucet_port: u16, reset: bool) -> Result<Child> {
     let mut command = Command::new("solana-test-validator");
     command
         .arg("--ledger")
@@ -69,6 +73,8 @@ async fn start_validator(rpc_port: u16, reset: bool) -> Result<Child> {
         .arg(rpc_port.to_string())
         .arg("--gossip-port")
         .arg("9001")
+        .arg("--faucet-port")
+        .arg(faucet_port.to_string())
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
@@ -200,6 +206,214 @@ Continuing without treating this as a hard error (you may already have enough SO
         }
     }
 
+    Ok(())
+}
+
+/// Provisions SPL tokens for wallets based on the `tokens` section of the harness config.
+fn provision_tokens(client: &RpcClient, config: &HarnessConfig, cluster: Cluster) -> Result<()> {
+    if config.tokens.is_empty() {
+        return Ok(());
+    }
+
+    if config.wallets.is_empty() {
+        return Err(anyhow!(
+            "Cannot provision tokens: no wallets configured in harness config."
+        ));
+    }
+
+    fs::create_dir_all("keys").context("Failed to create keys directory")?;
+
+    // Helper closure to load a wallet keypair by name from the keys directory
+    let load_wallet_keypair = |name: &str| -> Result<Keypair> {
+        let keypair_path = Path::new("keys").join(format!("{name}.json"));
+        read_keypair_file(&keypair_path).map_err(|e| {
+            anyhow!(
+                "Failed to read keypair for wallet '{}' from {}: {}",
+                name,
+                keypair_path.display(),
+                e
+            )
+        })
+    };
+
+    for token in &config.tokens {
+        println!(
+            "\n🪙 Provisioning SPL token '{}' (decimals: {}) on {:?}...",
+            token.name, token.decimals, cluster
+        );
+
+        // Load mint authority wallet
+        let mint_authority =
+            load_wallet_keypair(&token.mint_authority_wallet).with_context(|| {
+                format!(
+                    "Mint authority wallet '{}' must exist and be listed under wallets for token '{}'",
+                    token.mint_authority_wallet, token.name
+                )
+            })?;
+
+        let mut authority_balance = client
+            .get_balance(&mint_authority.pubkey())
+            .with_context(|| {
+                format!(
+                    "Failed to fetch balance for mint authority wallet '{}' while provisioning token '{}'",
+                    token.mint_authority_wallet, token.name
+                )
+            })?;
+        println!(
+            "   ℹ️ Mint authority '{}' (pubkey: {}) balance before mint creation: {} lamports",
+            token.mint_authority_wallet,
+            mint_authority.pubkey(),
+            authority_balance
+        );
+
+        if authority_balance == 0 {
+            println!(
+                "   ⏳ Mint authority '{}' currently has 0 lamports; waiting for airdrop to land...",
+                token.mint_authority_wallet
+            );
+
+            const MAX_ATTEMPTS: usize = 20;
+            const RETRY_DELAY_MS: u64 = 250;
+
+            for attempt in 1..=MAX_ATTEMPTS {
+                std::thread::sleep(std::time::Duration::from_millis(RETRY_DELAY_MS));
+                authority_balance = client
+                    .get_balance(&mint_authority.pubkey())
+                    .with_context(|| {
+                        format!(
+                            "Failed to refetch balance for mint authority wallet '{}' while provisioning token '{}'",
+                            token.mint_authority_wallet, token.name
+                        )
+                    })?;
+                if authority_balance > 0 {
+                    println!(
+                        "   ✅ Mint authority '{}' balance after wait: {} lamports (attempt {}/{})",
+                        token.mint_authority_wallet, authority_balance, attempt, MAX_ATTEMPTS
+                    );
+                    break;
+                }
+            }
+
+            if authority_balance == 0 {
+                return Err(anyhow!(
+                    "Mint authority wallet '{}' still has 0 lamports after waiting; cannot create mint for token '{}'. \
+Ensure this wallet is funded in the wallets section.",
+                    token.mint_authority_wallet,
+                    token.name
+                ));
+            }
+        }
+
+        // Create and initialize the mint account
+        let mint_keypair = Keypair::new();
+        let mint_pubkey = mint_keypair.pubkey();
+
+        let rent_exemption = client
+            .get_minimum_balance_for_rent_exemption(Mint::LEN)
+            .context("Failed to fetch rent exemption for mint account")?;
+
+        let latest_blockhash = client
+            .get_latest_blockhash()
+            .context("Failed to fetch latest blockhash for mint creation")?;
+
+        let create_mint_ix = system_instruction::create_account(
+            &mint_authority.pubkey(),
+            &mint_pubkey,
+            rent_exemption,
+            Mint::LEN as u64,
+            &spl_token::id(),
+        );
+
+        let init_mint_ix = token_instruction::initialize_mint(
+            &spl_token::id(),
+            &mint_pubkey,
+            &mint_authority.pubkey(),
+            None,
+            token.decimals,
+        )
+        .context("Failed to build initialize_mint instruction")?;
+
+        let tx = Transaction::new_signed_with_payer(
+            &[create_mint_ix, init_mint_ix],
+            Some(&mint_authority.pubkey()),
+            &[&mint_authority, &mint_keypair],
+            latest_blockhash,
+        );
+
+        client.send_and_confirm_transaction(&tx).with_context(|| {
+            format!(
+                "Failed to create and initialize mint for token '{}'",
+                token.name
+            )
+        })?;
+
+        println!(
+            "✅ Created mint for token '{}' with address {} (authority: {})",
+            token.name,
+            mint_pubkey,
+            mint_authority.pubkey()
+        );
+
+        // For each recipient, create ATA and mint the configured amount
+        for recipient in &token.recipients {
+            let recipient_kp = load_wallet_keypair(&recipient.wallet_name).with_context(|| {
+                format!(
+                    "Recipient wallet '{}' must exist and be listed under wallets for token '{}'",
+                    recipient.wallet_name, token.name
+                )
+            })?;
+
+            let recipient_pubkey = recipient_kp.pubkey();
+            let ata_address = get_associated_token_address(&recipient_pubkey, &mint_pubkey);
+
+            let latest_blockhash = client
+                .get_latest_blockhash()
+                .context("Failed to fetch latest blockhash for token provisioning")?;
+
+            let create_ata_ix = ata_instruction::create_associated_token_account(
+                &mint_authority.pubkey(), // payer
+                &recipient_pubkey,
+                &mint_pubkey,
+                &spl_token::id(),
+            );
+
+            let mint_to_ix = token_instruction::mint_to(
+                &spl_token::id(),
+                &mint_pubkey,
+                &ata_address,
+                &mint_authority.pubkey(),
+                &[],
+                recipient.amount,
+            )
+            .with_context(|| {
+                format!(
+                    "Failed to build mint_to instruction for wallet '{}' for token '{}'",
+                    recipient.wallet_name, token.name
+                )
+            })?;
+
+            let tx = Transaction::new_signed_with_payer(
+                &[create_ata_ix, mint_to_ix],
+                Some(&mint_authority.pubkey()),
+                &[&mint_authority],
+                latest_blockhash,
+            );
+
+            client.send_and_confirm_transaction(&tx).with_context(|| {
+                format!(
+                    "Failed to create ATA and mint tokens for wallet '{}' for token '{}'",
+                    recipient.wallet_name, token.name
+                )
+            })?;
+
+            println!(
+                "   ✅ Minted {} units of '{}' to wallet '{}' (owner: {}, ATA: {})",
+                recipient.amount, token.name, recipient.wallet_name, recipient_pubkey, ata_address
+            );
+        }
+    }
+
+    println!("\n✅ SPL token provisioning complete.");
     Ok(())
 }
 
