@@ -26,19 +26,37 @@ Over time this becomes fragile and hard to reproduce. Cadenza’s goal is to:
 
 ---
 
-## Features (current and planned)
+## Features
 
-- **Start a local harness**
-  - Launches `solana-test-validator` with a configured RPC port and optional ledger reset.
+- **Start a local or devnet harness**
+  - Launches `solana-test-validator` with a configured RPC port and optional ledger reset (for local cluster).
+  - Supports both local validator and Solana Devnet.
   - Waits for the validator to become healthy before returning.
+  - Non-blocking mode available for background operation.
+
+- **Wallet provisioning**
+  - Automatically creates and funds wallets with specified SOL balances.
+  - Keypairs are persisted to `keys/` directory for reuse.
+  - Handles rate limiting gracefully on Devnet.
+
+- **SPL token provisioning**
+  - Creates SPL token mints with configurable decimals.
+  - Creates associated token accounts (ATAs) for recipients.
+  - Distributes tokens to multiple wallets automatically.
+
+- **Program deployment**
+  - Deploys one or more Solana programs from compiled `.so` files.
+  - Automatically generates program ID keypairs if they don't exist.
+  - Supports multiple programs in a single configuration.
 
 - **Snapshot & restore ledger state**
   - `snapshot <name>`: copies the current `test-ledger` and config into `snapshots/<name>`.
   - `load <name>`: restores the ledger and config from `snapshots/<name>`, with backups of the current state.
   - `list-snapshots`: lists available snapshots.
 
-- **Declarative config** (implemented in code, provisioning logic WIP)
+- **Declarative configuration**
   - JSON file (`cadenza-config.json` by default) that describes:
+    - Cluster type (local or devnet).
     - Wallets to create and fund.
     - Programs to deploy (binary paths + program ID keypairs).
     - Tokens to mint and distribute to specific wallets.
@@ -51,7 +69,9 @@ By default Cadenza looks for `cadenza-config.json` in the project root. You can 
 
 ```json
 {
+  "cluster": "local",
   "rpcPort": 8899,
+  "faucetPort": 9900,
   "resetLedger": true,
   "wallets": [
     { "name": "alice_payer", "solBalance": 50.0 },
@@ -80,17 +100,20 @@ By default Cadenza looks for `cadenza-config.json` in the project root. You can 
 
 Field meanings:
 
-- **`rpcPort`**: Port for the local `solana-test-validator` RPC endpoint.
-- **`resetLedger`**: When `true`, starts the validator with `--reset` for a fresh ledger.
-- **`wallets`**: List of named wallets with initial SOL balances (in SOL, not lamports).
+- **`cluster`**: Cluster type - `"local"` (default) or `"devnet"`. When set to `"devnet"`, no local validator is started.
+- **`rpcPort`**: Port for the local `solana-test-validator` RPC endpoint (only used for local cluster).
+- **`faucetPort`**: Optional port for the local validator faucet (defaults to 9900, only used for local cluster).
+- **`resetLedger`**: When `true`, starts the validator with `--reset` for a fresh ledger (only used for local cluster).
+- **`wallets`**: List of named wallets with initial SOL balances (in SOL, not lamports). Wallets are created in the `keys/` directory.
 - **`programs`**:
-  - `binaryPath`: Path to the compiled program `.so`.
-  - `programIdPath`: Path to the JSON keypair file for the program ID.
+  - `name`: Descriptive name for the program.
+  - `binaryPath`: Path to the compiled program `.so` file.
+  - `programIdPath`: Path to the JSON keypair file for the program ID. If it doesn't exist, it will be generated automatically.
 - **`tokens`**:
   - `name`: Symbol/identifier for this dev token.
-  - `decimals`: SPL token decimals.
-  - `mintAuthorityWallet`: Name of a wallet that will be the mint authority.
-  - `recipients`: Who receives how many tokens (amounts are in raw token units).
+  - `decimals`: SPL token decimals (typically 6 for stablecoins, 9 for native-like tokens).
+  - `mintAuthorityWallet`: Name of a wallet (must be listed in `wallets`) that will be the mint authority.
+  - `recipients`: Array of wallet recipients and their token amounts (amounts are in raw token units, not accounting for decimals).
 
 You can create multiple config files and point Cadenza at a specific one using the `--config-path` option on commands that support it.
 
@@ -108,9 +131,14 @@ From the repository root:
 
   # With explicit config path
   cargo run -- start --config-path my-config.json
+
+  # Non-blocking mode (validator runs in background)
+  cargo run -- start --no-block
   ```
 
-  This launches `solana-test-validator` on `http://127.0.0.1:<rpcPort>` and waits for it to be healthy. The process keeps running until you press Ctrl+C.
+  For local cluster: This launches `solana-test-validator` on `http://127.0.0.1:<rpcPort>` and waits for it to be healthy. The process keeps running until you press Ctrl+C (unless `--no-block` is used).
+
+  For devnet: This provisions wallets, tokens, and programs on Solana Devnet without starting a local validator.
 
 - **Create a snapshot**
 

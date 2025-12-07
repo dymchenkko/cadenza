@@ -1,5 +1,5 @@
 {
-  "cluster": "Local",
+  "cluster": "local",
   "rpcPort": 8899,
   "faucetPort": 9901,
   "resetLedger": true,
