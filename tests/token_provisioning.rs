@@ -11,7 +11,6 @@ use std::thread;
 use std::time::Duration;
 
 #[test]
-#[ignore]
 fn provisions_spl_tokens_for_recipients() -> Result<()> {
     // Use a dedicated, checked-in config file for this test harness.
     let config_path = PathBuf::from("tests/cadenza-provision_spl_tokens_for_recipients.json");

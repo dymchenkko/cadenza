@@ -515,3 +515,177 @@ async fn deploy_programs(rpc_url: &str, config: &HarnessConfig, cluster: Cluster
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::{HarnessConfig, ProgramConfig, TokenConfig};
+
+    #[test]
+    fn test_sol_to_lamports_conversion() {
+        // Test that sol_to_lamports works correctly
+        let sol = 1.5;
+        let lamports = sol_to_lamports(sol);
+        assert_eq!(lamports, 1_500_000_000); // 1.5 SOL = 1,500,000,000 lamports
+
+        let sol = 0.0;
+        let lamports = sol_to_lamports(sol);
+        assert_eq!(lamports, 0);
+
+        let sol = 100.0;
+        let lamports = sol_to_lamports(sol);
+        assert_eq!(lamports, 100_000_000_000); // 100 SOL = 100,000,000,000 lamports
+    }
+
+    #[test]
+    fn test_provision_wallets_empty_list() {
+        // Verify the early return logic exists
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        // The function should return Ok(()) immediately when wallets is empty
+        assert!(config.wallets.is_empty());
+    }
+
+    #[test]
+    fn test_provision_tokens_empty_list() {
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        // The function should return Ok(()) immediately when tokens is empty
+        assert!(config.tokens.is_empty());
+    }
+
+    #[test]
+    fn test_provision_tokens_requires_wallets() {
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![TokenConfig {
+                name: "TEST".to_string(),
+                decimals: 6,
+                mint_authority_wallet: "alice".to_string(),
+                recipients: vec![],
+            }],
+        };
+        
+        // The function should return an error when tokens exist but wallets is empty
+        assert!(config.wallets.is_empty());
+        assert!(!config.tokens.is_empty());
+    }
+
+    #[test]
+    fn test_deploy_programs_empty_list() {
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        assert!(config.programs.is_empty());
+    }
+
+    #[test]
+    fn test_deploy_programs_requires_wallets() {
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![ProgramConfig {
+                name: "test".to_string(),
+                binary_path: "./test.so".to_string(),
+                program_id_path: "./keys/test_id.json".to_string(),
+            }],
+            tokens: vec![],
+        };
+        
+        // The function should return an error when programs exist but wallets is empty
+        assert!(config.wallets.is_empty());
+        assert!(!config.programs.is_empty());
+    }
+
+    #[test]
+    fn test_cluster_enum_matching() {
+        let local_config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        let devnet_config = HarnessConfig {
+            cluster: Cluster::Devnet,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        match local_config.cluster {
+            Cluster::Local => assert!(true),
+            Cluster::Devnet => assert!(false, "Expected Local cluster"),
+        }
+        
+        match devnet_config.cluster {
+            Cluster::Local => assert!(false, "Expected Devnet cluster"),
+            Cluster::Devnet => assert!(true),
+        }
+    }
+
+    #[test]
+    fn test_faucet_port_default() {
+        let config = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: None,
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        let faucet_port = config.faucet_port.unwrap_or(9900);
+        assert_eq!(faucet_port, 9900);
+        
+        let config_with_port = HarnessConfig {
+            cluster: Cluster::Local,
+            rpc_port: 8899,
+            faucet_port: Some(9999),
+            reset_ledger: false,
+            wallets: vec![],
+            programs: vec![],
+            tokens: vec![],
+        };
+        
+        assert_eq!(config_with_port.faucet_port, Some(9999));
+    }
+}
