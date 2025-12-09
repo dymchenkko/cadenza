@@ -1,7 +1,7 @@
 use crate::setup::start_harness;
 use crate::snapshot::{create_snapshot, list_snapshots, load_snapshot};
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use tokio::signal;
 
 mod config;
@@ -44,6 +44,12 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--help-all") {
+        print_full_help()?;
+        return Ok(());
+    }
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -100,5 +106,19 @@ async fn main() -> Result<()> {
         }
     }
 
+    Ok(())
+}
+
+fn print_full_help() -> Result<()> {
+    let mut cmd = Cli::command();
+    cmd.print_long_help()?;
+    println!("\n\nSubcommand details:");
+
+    for sub in cmd.get_subcommands_mut() {
+        println!("\n--- {} ---", sub.get_name());
+        sub.print_long_help()?;
+    }
+
+    println!();
     Ok(())
 }
