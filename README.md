@@ -9,6 +9,29 @@ This lets you avoid manually juggling `solana-test-validator` flags, ledger dire
 
 ---
 
+## ⚡ Quick Start
+
+Get up and running in under 5 minutes! See the [Quick Start Guide](./QUICKSTART.md) for detailed instructions with screenshots.
+
+```bash
+# Clone and build
+git clone https://github.com/yourusername/cadenza.git
+cd cadenza
+cargo build --release
+
+# Copy config template
+cp cadenza-config.template.json cadenza-config.json
+
+# Start your local Solana environment
+cargo run -- start
+```
+
+**That's it!** Your local validator is now running with wallets, programs, and tokens configured. Press `Ctrl+C` to stop.
+
+> 📖 **New to Cadenza?** Check out the [Quick Start Guide](./QUICKSTART.md) for a step-by-step walkthrough with screenshots.
+
+---
+
 ## What problem does it solve?
 
 Developing on Solana locally usually involves a lot of repetitive manual work:
@@ -179,4 +202,23 @@ From the repository root:
 - Rust toolchain (to run via `cargo`).
 - `solana-test-validator` and the Solana CLI tooling installed and available on your `PATH`.
 
+---
+
+## 📖 Documentation
+
+- **[Quick Start Guide](./QUICKSTART.md)** - Get started in 5 minutes with screenshots
+- **[Configuration Reference](#configuration-file)** - Detailed config file documentation
+- **[CLI Usage](#cli-usage)** - Complete command reference
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
 
