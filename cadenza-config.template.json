@@ -10,9 +10,9 @@
   ],
   "programs": [
     {
-      "name": "example_program",
-      "binaryPath": "./target/deploy/example_program.so",
-      "programIdPath": "./keys/example_program_id.json"
+      "name": "hello_world",
+      "binaryPath": "./target/deploy/hello_world.so",
+      "programIdPath": "./keys/hello_world_id.json"
     }
   ],
   "tokens": [
