@@ -1,5 +1,10 @@
 ## Cadenza
 
+[![CI](https://github.com/dymchenkko/cadenza/workflows/CI/badge.svg)](https://github.com/dymchenkko/cadenza/actions)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)](Cargo.toml)
+[![Rust](https://img.shields.io/badge/rust-1.70%2B-orange.svg)](https://www.rust-lang.org/)
+
 **Cadenza** is a small Rust CLI that orchestrates a local Solana development environment. It focuses on two things:
 
 - **Spin up a reproducible local validator environment** from a simple JSON config.
