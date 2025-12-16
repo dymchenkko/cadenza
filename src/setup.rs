@@ -482,10 +482,28 @@ async fn deploy_programs(rpc_url: &str, config: &HarnessConfig, cluster: Cluster
             payer_keypair_path.display()
         );
 
+        // Resolve binary path to absolute path to avoid issues with relative paths
+        let binary_path = Path::new(&program.binary_path);
+        let absolute_binary_path = if binary_path.is_absolute() {
+            binary_path.to_path_buf()
+        } else {
+            std::env::current_dir()
+                .context("Failed to get current directory")?
+                .join(binary_path)
+        };
+
+        if !absolute_binary_path.exists() {
+            return Err(anyhow!(
+                "Program binary file not found: {} (resolved to: {})",
+                program.binary_path,
+                absolute_binary_path.display()
+            ));
+        }
+
         let status = Command::new("solana")
             .arg("program")
             .arg("deploy")
-            .arg(&program.binary_path)
+            .arg(absolute_binary_path.to_str().unwrap())
             .arg("--program-id")
             .arg(&program.program_id_path)
             .arg("--url")

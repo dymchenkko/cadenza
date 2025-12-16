@@ -54,6 +54,25 @@ Over time this becomes fragile and hard to reproduce. Cadenza’s goal is to:
 
 ---
 
+## Why Cadenza?
+
+| Feature | Manual Setup | Cadenza |
+|---------|--------------|---------|
+| **Setup Time** | 10+ minutes | ~30 seconds |
+| **Configuration** | Multiple commands, flags, scripts | Single JSON config file |
+| **Reproducibility** | ❌ Fragile, hard to reproduce | ✅ Declarative, version-controlled |
+| **State Management** | Manual copying/backup of ledger | ✅ Named snapshots with one command |
+| **Wallet Creation** | Manual keypair generation + airdrops | ✅ Automatic creation and funding |
+| **Token Setup** | Multiple commands, manual ATA creation | ✅ Automatic mint + distribution |
+| **Program Deployment** | Manual `solana program deploy` | ✅ Automatic from config |
+| **Environment Reset** | Delete ledger, recreate everything | ✅ Load snapshot, done |
+| **Team Collaboration** | Share scripts, hope they work | ✅ Share config file, guaranteed same setup |
+| **Error Recovery** | Start from scratch | ✅ Restore from snapshot |
+
+**Time saved per development session:** ~10 minutes × multiple iterations = **hours saved per week**
+
+---
+
 ## Features
 
 - **Start a local or devnet harness**
@@ -202,10 +221,131 @@ From the repository root:
 
 ---
 
-## Requirements
+## 📦 Installation
 
-- Rust toolchain (to run via `cargo`).
-- `solana-test-validator` and the Solana CLI tooling installed and available on your `PATH`.
+### Prerequisites
+
+Before installing Cadenza, ensure you have the following installed:
+
+1. **Rust Toolchain** (version 1.70 or later)
+   - Install from [rustup.rs](https://rustup.rs/) or run:
+     ```bash
+     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+     ```
+   - Verify installation:
+     ```bash
+     rustc --version
+     cargo --version
+     ```
+
+2. **Solana CLI Tools** (version 1.18.0 or later)
+   - Install from [Solana Documentation](https://docs.solana.com/cli/install-solana-cli-tools) or run:
+     ```bash
+     sh -c "$(curl -sSfL https://release.solana.com/v1.18.0/install)"
+     ```
+   - Add to PATH (if not automatically added):
+     ```bash
+     export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+     ```
+   - Verify installation:
+     ```bash
+     solana --version
+     solana-test-validator --version
+     spl-token --version
+     ```
+
+### Install Cadenza
+
+#### Option 1: Build from Source (Recommended)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/dymchenkko/cadenza.git
+   cd cadenza
+   ```
+
+2. **Build the project:**
+   ```bash
+   cargo build --release
+   ```
+
+3. **Optional: Install globally**
+   ```bash
+   cargo install --path .
+   ```
+   
+   After installation, you can use `cadenza` directly from anywhere:
+   ```bash
+   cadenza start
+   ```
+
+#### Option 2: Install via Cargo (When Published)
+
+Once Cadenza is published to [crates.io](https://crates.io), you can install it directly:
+
+```bash
+cargo install cadenza
+```
+
+### Verify Installation
+
+After installation, verify everything works:
+
+```bash
+# If installed globally
+cadenza --help
+
+# If building from source
+cargo run -- --help
+
+# Verify Solana CLI is accessible
+solana-test-validator --help
+```
+
+### Troubleshooting
+
+**Problem: `solana-test-validator: command not found`**
+
+- **Solution:** Ensure Solana CLI is installed and in your PATH:
+  ```bash
+  export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+  ```
+  Add this to your `~/.bashrc`, `~/.zshrc`, or shell profile for persistence.
+
+**Problem: `cargo: command not found`**
+
+- **Solution:** Install Rust toolchain:
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  source $HOME/.cargo/env
+  ```
+
+**Problem: Port conflicts when starting validator**
+
+- **Solution:** Change the `rpcPort` in your `cadenza-config.json` to an available port, or stop any processes using ports 8899, 9001, or 9900.
+
+**Problem: Build fails with dependency errors**
+
+- **Solution:** Update Rust and Cargo:
+  ```bash
+  rustup update stable
+  cargo update
+  ```
+
+### Next Steps
+
+Once installed, check out the [Quick Start Guide](./QUICKSTART.md) to get your first environment running in minutes!
+
+---
+
+## 📚 Examples
+
+Cadenza comes with practical examples to help you get started:
+
+- **[Hello World](./examples/hello_world/)** - Minimal example to learn the basics
+- **[Token Swap](./examples/token_swap/)** - DeFi example with multiple tokens and wallets
+
+See the [Examples Directory](./examples/) for more details and configuration examples.
 
 ---
 
@@ -214,6 +354,7 @@ From the repository root:
 - **[Quick Start Guide](./QUICKSTART.md)** - Get started in 5 minutes with screenshots
 - **[Configuration Reference](#configuration-file)** - Detailed config file documentation
 - **[CLI Usage](#cli-usage)** - Complete command reference
+- **[Examples](./examples/)** - Real-world program examples
 
 ---
 

@@ -1,0 +1,54 @@
+{
+  "cluster": "local",
+  "rpcPort": 8899,
+  "resetLedger": true,
+  "wallets": [
+    {
+      "name": "alice",
+      "solBalance": 10.0
+    },
+    {
+      "name": "bob",
+      "solBalance": 10.0
+    }
+  ],
+  "programs": [
+    {
+      "name": "token_swap",
+      "binaryPath": "./examples/token_swap/target/deploy/token_swap.so",
+      "programIdPath": "./keys/token_swap_id.json"
+    }
+  ],
+  "tokens": [
+    {
+      "name": "USDC",
+      "decimals": 6,
+      "mintAuthorityWallet": "alice",
+      "recipients": [
+        {
+          "walletName": "alice",
+          "amount": 1000000000
+        },
+        {
+          "walletName": "bob",
+          "amount": 500000000
+        }
+      ]
+    },
+    {
+      "name": "SOL_TOKEN",
+      "decimals": 9,
+      "mintAuthorityWallet": "bob",
+      "recipients": [
+        {
+          "walletName": "alice",
+          "amount": 5000000000
+        },
+        {
+          "walletName": "bob",
+          "amount": 10000000000
+        }
+      ]
+    }
+  ]
+}
