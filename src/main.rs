@@ -19,7 +19,7 @@ struct Cli {
 enum Commands {
     /// Starts the local validator and provisions the full environment
     Start {
-        /// Path to the harness config file (defaults to harness-config.json, which is restored from snapshots)
+        /// Path to the config file (defaults to cadenza-config.json, which is restored from snapshots)
         #[arg(short, long, default_value = "cadenza-config.json")]
         config_path: String,
         #[arg(long)]
@@ -29,7 +29,7 @@ enum Commands {
     Snapshot {
         /// Name of the snapshot to create
         name: String,
-        /// Path to the harness config file (defaults to harness-config.json)
+        /// Path to the config file (defaults to cadenza-config.json)
         #[arg(short, long, default_value = "cadenza-config.json")]
         config_path: String,
     },

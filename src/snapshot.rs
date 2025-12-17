@@ -120,7 +120,7 @@ pub fn load_snapshot(name: &str) -> Result<()> {
         if config_dest.exists() {
             // Backup current config
             let backup_config = format!(
-                "harness-config.json.backup-{}",
+                "cadenza-config.json.backup-{}",
                 chrono::Utc::now().format("%Y%m%d-%H%M%S")
             );
             fs::copy(config_dest, &backup_config).context("Failed to backup current config")?;
