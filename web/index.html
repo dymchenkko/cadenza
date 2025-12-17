@@ -276,7 +276,7 @@
     <div class="layout">
         <aside class="sidebar">
             <div class="brand">
-                <h1><span>🎹</span> Cadenza</h1>
+                <h1>Cadenza</h1>
             </div>
             
             <nav class="nav-list">
@@ -335,6 +335,12 @@
                         </div>
                         <ul id="snapshotList" class="snapshot-list"></ul>
                         <button id="loadSnapshotBtn" class="btn-primary" style="width: 100%;">Load Selected</button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Config Profiles</div>
+                        <p style="font-size: 0.875rem; color: var(--text-dim);">Pick which config file the orchestrator should use.</p>
+                        <div id="configListMain" class="snapshot-list" style="max-height: 260px;"></div>
                     </div>
 
                     <div class="card" style="grid-column: span 2;">
@@ -491,10 +497,14 @@
             try {
                 const response = await fetch(`${API_BASE}/configs`);
                 const result = await response.json();
-                const listEl = document.getElementById('configList');
-                listEl.innerHTML = '';
-                if (result.success && result.data.length > 0) {
-                    const current = document.getElementById('activeConfigLabel').textContent;
+                const targets = ['configList', 'configListMain'].map(id => document.getElementById(id)).filter(Boolean);
+                const current = document.getElementById('activeConfigLabel').textContent;
+                const renderList = (container) => {
+                    container.innerHTML = '';
+                    if (!(result.success && result.data.length > 0)) {
+                        container.innerHTML = '<div style="color: var(--text-dim); font-size: 0.8125rem;">No configs found.</div>';
+                        return;
+                    }
                     result.data.forEach(c => {
                         const li = document.createElement('div');
                         li.className = `snapshot-item ${current === c.path ? 'selected' : ''}`;
@@ -503,15 +513,17 @@
                             ${current === c.path ? '<span style="font-size: 0.75rem; font-weight: 600; color: var(--primary);">ACTIVE</span>' : '<button class="btn-outline" style="padding: 4px 8px; font-size: 0.75rem;">Switch</button>'}
                         `;
                         if (current !== c.path) {
-                            li.querySelector('button').onclick = (e) => {
+                            const btn = li.querySelector('button');
+                            btn.onclick = (e) => {
                                 e.stopPropagation();
                                 selectConfig(c.path);
                             };
                         }
                         li.onclick = () => selectConfig(c.path);
-                        listEl.appendChild(li);
+                        container.appendChild(li);
                     });
-                }
+                };
+                targets.forEach(renderList);
             } catch (e) { console.error(e); }
         }
 
