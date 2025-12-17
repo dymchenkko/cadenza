@@ -1,5 +1,6 @@
 use crate::setup::start_harness;
 use crate::snapshot::{create_snapshot, list_snapshots, load_snapshot};
+use crate::web::start_web_server;
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use tokio::signal;
@@ -7,6 +8,7 @@ use tokio::signal;
 mod config;
 mod setup;
 mod snapshot;
+mod web;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "Solana Dev Environment Orchestrator (Cadenza)", long_about = None)]
@@ -40,6 +42,15 @@ enum Commands {
     },
     /// Lists all available snapshots
     ListSnapshots,
+    /// Starts the web UI server
+    Web {
+        /// Port to run the web server on (defaults to 8080)
+        #[arg(short, long, default_value = "8080")]
+        port: u16,
+        /// Path to the config file (defaults to cadenza-config.json)
+        #[arg(short, long, default_value = "cadenza-config.json")]
+        config_path: String,
+    },
 }
 
 #[tokio::main]
@@ -103,6 +114,9 @@ async fn main() -> Result<()> {
                     println!("  - {snapshot}");
                 }
             }
+        }
+        Commands::Web { port, config_path } => {
+            start_web_server(port, config_path).await?;
         }
     }
 

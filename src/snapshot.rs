@@ -167,7 +167,7 @@ pub fn list_snapshots() -> Result<Vec<String>> {
 }
 
 /// Checks if solana-test-validator process is actually running
-fn is_validator_running() -> Result<bool> {
+pub fn is_validator_running() -> Result<bool> {
     let pgrep_output = Command::new("pgrep")
         .arg("-f")
         .arg("solana-test-validator")
