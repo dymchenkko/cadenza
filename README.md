@@ -20,7 +20,7 @@ Get up and running in under 5 minutes! See the [Quick Start Guide](./QUICKSTART.
 
 ```bash
 # Clone and build
-git clone https://github.com/yourusername/cadenza.git
+git clone https://github.com/dymchenkko/cadenza.git
 cd cadenza
 cargo build --release
 

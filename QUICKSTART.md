@@ -18,7 +18,7 @@ Before you begin, make sure you have:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cadenza.git
+git clone https://github.com/dymchenkko/cadenza.git
 cd cadenza
 
 # Build the project
