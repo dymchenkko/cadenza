@@ -219,6 +219,20 @@ From the repository root:
   cargo run -- list-snapshots
   ```
 
+- **Start the web UI**
+
+  ```bash
+  # Start web server on default port 8080
+  cargo run -- web
+
+  # Or specify a custom port
+  cargo run -- web --port 3000
+  ```
+
+  Then open `http://localhost:8080` in your browser for a visual interface!
+
+  > 🌐 **New!** Check out the [Web UI Guide](./WEB_UI.md) for details on the web interface.
+
 ---
 
 ## 📦 Installation
