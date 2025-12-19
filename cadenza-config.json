@@ -1,25 +1,30 @@
 {
+  "cluster": "local",
   "rpcPort": 8899,
   "resetLedger": true,
   "wallets": [
-    { "name": "alice_payer", "solBalance": 50.0 },
-    { "name": "bob_user", "solBalance": 1.0 }
+    {
+      "name": "example_wallet",
+      "solBalance": 5.0
+    }
   ],
   "programs": [
     {
-      "name": "staking_vault",
-      "binaryPath": "./target/deploy/staking_vault.so",
-      "programIdPath": "./keys/staking_vault_id.json"
+      "name": "hello_world",
+      "binaryPath": "./target/deploy/hello_world.so",
+      "programIdPath": "./keys/hello_world_id.json"
     }
   ],
   "tokens": [
     {
-      "name": "USDC_DEV",
+      "name": "EXAMPLE_TOKEN",
       "decimals": 6,
-      "mintAuthorityWallet": "alice_payer",
+      "mintAuthorityWallet": "example_wallet",
       "recipients": [
-        { "walletName": "alice_payer", "amount": 10000000000 },
-        { "walletName": "bob_user", "amount": 5000000 }
+        {
+          "walletName": "example_wallet",
+          "amount": 1000000
+        }
       ]
     }
   ]
