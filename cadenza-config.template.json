@@ -1,32 +1,31 @@
 {
   "cluster": "local",
-  "rpcPort": 8899,
-  "resetLedger": true,
-  "wallets": [
-    {
-      "name": "example_wallet",
-      "solBalance": 5.0
-    }
-  ],
   "programs": [
     {
+      "binaryPath": "./examples/hello_world/target/deploy/hello_world.so",
       "name": "hello_world",
-      "binaryPath": "./target/deploy/hello_world.so",
-      "programIdPath": "./keys/hello_world_id.json"
+      "programIdPath": "./examples/hello_world/target/deploy/hello_world-keypair.json"
     }
   ],
+  "resetLedger": true,
+  "rpcPort": 8899,
   "tokens": [
     {
-      "name": "EXAMPLE_TOKEN",
       "decimals": 6,
       "mintAuthorityWallet": "example_wallet",
+      "name": "EXAMPLE_TOKEN",
       "recipients": [
         {
-          "walletName": "example_wallet",
-          "amount": 1000000
+          "amount": 1000000,
+          "walletName": "example_wallet"
         }
       ]
     }
+  ],
+  "wallets": [
+    {
+      "name": "example_wallet",
+      "solBalance": 5
+    }
   ]
 }
-
