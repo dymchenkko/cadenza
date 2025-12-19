@@ -225,6 +225,24 @@
         .btn-outline:hover:not(:disabled) { background-color: var(--border); }
         .btn-danger { background-color: rgba(239, 68, 68, 0.1); color: var(--danger); border-color: rgba(239, 68, 68, 0.2); }
         .btn-danger:hover:not(:disabled) { background-color: var(--danger); color: white; }
+        .round-action {
+            width: 112px;
+            height: 112px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: 1px solid transparent;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s;
+        }
+        .round-action:disabled { opacity: 0.65; cursor: not-allowed; }
+        .round-action.run { background-color: var(--success); color: #0f172a; }
+        .round-action.run:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(16,185,129,0.25); }
+        .round-action.stop { background-color: var(--danger); color: white; }
+        .round-action.stop:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 20px rgba(239,68,68,0.25); }
 
         input {
             background-color: rgba(15, 23, 42, 0.5);
@@ -324,12 +342,12 @@
 
                 <div class="grid">
                     <div class="card">
-                        <div class="card-title">Node Control</div>
-                        <p id="rpcInfo" style="font-size: 0.875rem; color: var(--text-dim);">Standby mode.</p>
-                        <div class="btn-group">
-                            <button id="startBtn" class="btn-primary">Start Node</button>
-                            <button id="stopBtn" class="btn-danger" disabled>Shutdown</button>
+                        <div class="card-title" style="justify-content: center; text-align: center;">Node Control</div>
+                        <div style="display: flex; gap: 12px; align-items: center; justify-content: center; flex-direction: column; margin-bottom: 8px;">
+                            <button id="toggleNodeBtn" class="round-action run">Run</button>
+                            <div id="nodeStateHint" style="color: var(--text-dim); font-size: 0.95rem; text-align: center;">Validator is offline.</div>
                         </div>
+                        <p id="rpcInfo" style="font-size: 0.875rem; color: var(--text-dim); text-align: center;">Standby mode.</p>
                     </div>
 
                     <div class="card" id="snapshotsCard">
@@ -431,6 +449,8 @@
         let currentConfig = null;
         let isNewConfig = false;
         let mode = 'configs';
+        let isRunning = false;
+        let toggleBusy = false;
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -468,15 +488,15 @@
                     const rpcInfo = document.getElementById('rpcInfo');
                     
                     if (status.running) {
+                        isRunning = true;
                         badgeContainer.innerHTML = `<div class="status-badge"><span class="dot running"></span> ACTIVE</div>`;
                         rpcInfo.innerHTML = `Connected to <code style="color: var(--accent)">${status.rpc_url}</code>`;
-                        document.getElementById('startBtn').disabled = true;
-                        document.getElementById('stopBtn').disabled = false;
+                        updateToggleButton();
                     } else {
-                        badgeContainer.innerHTML = `<div class="status-badge"><span class="dot stopped"></span> OFFLINE</div>`;
+                        isRunning = false;
+                        badgeContainer.innerHTML = ``;
                         rpcInfo.textContent = 'System standby. Node is offline.';
-                        document.getElementById('startBtn').disabled = false;
-                        document.getElementById('stopBtn').disabled = true;
+                        updateToggleButton();
                     }
                     if (status.current_config) {
                         document.getElementById('activeConfigLabel').textContent = status.current_config;
@@ -539,8 +559,6 @@
         }
 
         async function startValidator() {
-            const btn = document.getElementById('startBtn');
-            btn.disabled = true;
             addLog('Requesting validator startup...', 'info');
             try {
                 const response = await fetch(`${API_BASE}/start`, { method: 'POST' });
@@ -570,6 +588,37 @@
                 }
             } catch (e) { showToast(e.message, 'error'); }
             setTimeout(checkStatus, 1000);
+        }
+
+        async function toggleNode() {
+            if (toggleBusy) return;
+            toggleBusy = true;
+            updateToggleButton();
+            if (isRunning) {
+                await stopValidator();
+            } else {
+                await startValidator();
+            }
+            toggleBusy = false;
+            checkStatus();
+        }
+
+        function updateToggleButton() {
+            const btn = document.getElementById('toggleNodeBtn');
+            const hint = document.getElementById('nodeStateHint');
+            if (!btn || !hint) return;
+            btn.disabled = toggleBusy;
+            if (isRunning) {
+                btn.textContent = 'Shutdown';
+                btn.classList.remove('run');
+                btn.classList.add('stop');
+                hint.textContent = 'Validator is running. Click to stop.';
+            } else {
+                btn.textContent = 'Run';
+                btn.classList.remove('stop');
+                btn.classList.add('run');
+                hint.textContent = 'Validator is offline. Click to start.';
+            }
         }
 
         async function loadConfig() {
@@ -664,8 +713,7 @@
         }
 
         // Init
-        document.getElementById('startBtn').onclick = startValidator;
-        document.getElementById('stopBtn').onclick = stopValidator;
+        document.getElementById('toggleNodeBtn').onclick = toggleNode;
         document.getElementById('newConfigBtn').onclick = newConfig;
         document.getElementById('refreshConfigBtn').onclick = loadConfig;
         document.getElementById('saveConfigBtn').onclick = saveConfig;
