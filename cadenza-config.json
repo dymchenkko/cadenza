@@ -1,11 +1,11 @@
 {
-  "cluster": "devnet",
+  "cluster": "local",
   "rpcPort": 8899,
   "resetLedger": true,
   "wallets": [
     {
-      "name": "hello_payer",
-      "solBalance": 1.0
+      "name": "example_wallet",
+      "solBalance": 5.0
     }
   ],
   "programs": [
@@ -15,5 +15,18 @@
       "programIdPath": "./keys/hello_world_id.json"
     }
   ],
-  "tokens": []
+  "tokens": [
+    {
+      "name": "EXAMPLE_TOKEN",
+      "decimals": 6,
+      "mintAuthorityWallet": "example_wallet",
+      "recipients": [
+        {
+          "walletName": "example_wallet",
+          "amount": 1000000
+        }
+      ]
+    }
+  ]
 }
+
