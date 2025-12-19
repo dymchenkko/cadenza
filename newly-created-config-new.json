@@ -1,0 +1,8 @@
+{
+  "cluster": "local",
+  "programs": [],
+  "resetLedger": true,
+  "rpcPort": 8899,
+  "tokens": [],
+  "wallets": []
+}

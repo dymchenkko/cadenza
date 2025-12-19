@@ -126,7 +126,7 @@
         .mode-toggle .active { background-color: var(--primary); color: white; border-color: var(--primary); }
 
         /* Cards */
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+        .grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
 
         .card {
             background-color: var(--card-bg);
@@ -272,6 +272,19 @@
         }
         .snapshot-item:hover { background-color: rgba(255, 255, 255, 0.06); }
         .snapshot-item.selected { border-color: var(--primary); background-color: rgba(99, 102, 241, 0.1); }
+        .snapshot-meta { display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; color: var(--text-dim); margin-top: 8px; }
+        .snapshot-meta strong { color: var(--text); font-size: 0.78rem; }
+        .snapshot-config-preview {
+            margin-top: 10px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            max-height: 200px;
+            overflow: auto;
+        }
 
         #toast {
             position: fixed;
@@ -375,37 +388,38 @@
                     <div id="statusBadgeContainer"></div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <div class="mode-toggle">
-                        <button id="modeConfigsBtn" class="btn-outline active">Configs</button>
-                        <button id="modeSnapshotsBtn" class="btn-outline">Snapshots</button>
-                    </div>
-                </div>
-
                 <div class="grid">
-                    <div class="card">
+                    <div class="card" style="grid-column: span 2;">
                         <div class="card-title" style="justify-content: center; text-align: center;">Node Control</div>
                         <div style="display: flex; gap: 12px; align-items: center; justify-content: center; flex-direction: column; margin-bottom: 8px;">
                             <button id="toggleNodeBtn" class="round-action run">Run</button>
                             <div id="nodeStateHint" style="color: var(--text-dim); font-size: 0.95rem; text-align: center;">Validator is offline.</div>
                         </div>
                         <p id="rpcInfo" style="font-size: 0.875rem; color: var(--text-dim); text-align: center;">Standby mode.</p>
+                        <div style="margin-top: 12px;">
+                            <div class="mode-toggle">
+                                <button id="modeConfigsBtn" class="btn-outline active">Configs</button>
+                                <button id="modeSnapshotsBtn" class="btn-outline">Snapshots</button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="card" id="snapshotsCard">
+                    <div class="card" id="configProfilesCard" style="grid-column: span 2;">
+                        <div class="card-title">Config Profiles</div>
+                        <p style="font-size: 0.875rem; color: var(--text-dim);">Pick which config file the orchestrator should use.</p>
+                        <div id="configListMain" class="snapshot-list" style="max-height: 260px;"></div>
+                    </div>
+
+                    <div class="card" id="snapshotsCard" style="grid-column: span 2;">
                         <div class="card-title">Snapshots</div>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="snapshotName" placeholder="checkpoint_name">
                             <button id="createSnapshotBtn" class="btn-outline">Create</button>
                         </div>
                         <ul id="snapshotList" class="snapshot-list"></ul>
+                        <div id="snapshotDetails" class="snapshot-meta">Select a snapshot to see details.</div>
+                        <pre id="snapshotConfigPreview" class="snapshot-config-preview hidden"></pre>
                         <button id="loadSnapshotBtn" class="btn-primary" style="width: 100%;">Load Selected</button>
-                    </div>
-
-                    <div class="card" id="configProfilesCard">
-                        <div class="card-title">Config Profiles</div>
-                        <p style="font-size: 0.875rem; color: var(--text-dim);">Pick which config file the orchestrator should use.</p>
-                        <div id="configListMain" class="snapshot-list" style="max-height: 260px;"></div>
                     </div>
 
                     <div class="card" id="configEditorCard" style="grid-column: span 2;">
@@ -704,23 +718,75 @@
                 const response = await fetch(`${API_BASE}/snapshots`);
                 const result = await response.json();
                 const listEl = document.getElementById('snapshotList');
+                const detailsEl = document.getElementById('snapshotDetails');
+                const cfgPreview = document.getElementById('snapshotConfigPreview');
                 listEl.innerHTML = '';
                 if (result.success && result.data.length > 0) {
                     result.data.forEach(s => {
                         const li = document.createElement('li');
                         li.className = `snapshot-item ${selectedSnapshot === s.name ? 'selected' : ''}`;
-                        li.innerHTML = `<span style="font-family: var(--font-mono); font-size: 0.8125rem;">${s.name}</span>`;
+                        li.innerHTML = `
+                            <span style="font-family: var(--font-mono); font-size: 0.8125rem;">${s.name}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-dim);">${s.created_at ? new Date(s.created_at).toLocaleString() : ''}</span>
+                        `;
                         li.onclick = () => {
                             selectedSnapshot = s.name;
                             document.getElementById('snapshotName').value = s.name;
+                            updateSnapshotDetails(s);
+                            loadSnapshotConfig(s.name);
                             loadSnapshots();
                         };
                         listEl.appendChild(li);
                     });
+                    const firstSelected = result.data.find(s => s.name === selectedSnapshot) || result.data[0];
+                    if (firstSelected) {
+                        updateSnapshotDetails(firstSelected);
+                        loadSnapshotConfig(firstSelected.name);
+                    }
                 } else {
                     listEl.innerHTML = '<li style="color: var(--text-dim); font-size: 0.8125rem;">No snapshots.</li>';
+                    if (detailsEl) detailsEl.textContent = 'No snapshots available.';
+                    if (cfgPreview) { cfgPreview.classList.add('hidden'); cfgPreview.textContent = ''; }
                 }
             } catch (e) { console.error(e); }
+        }
+
+        function updateSnapshotDetails(s) {
+            const detailsEl = document.getElementById('snapshotDetails');
+            if (!detailsEl) return;
+            const created = s.created_at ? new Date(s.created_at).toLocaleString() : 'unknown';
+            const cfg = s.config_path || 'not recorded';
+            detailsEl.innerHTML = `
+                <div><strong>Snapshot:</strong> ${s.name}</div>
+                <div><strong>Created:</strong> ${created}</div>
+                <div><strong>Config:</strong> ${cfg}</div>
+                <div style="margin-top:4px; color: var(--text-dim);">Snapshots capture the ledger and config so you can roll back to a known state.</div>
+            `;
+        }
+
+        async function loadSnapshotConfig(name) {
+            const cfgPreview = document.getElementById('snapshotConfigPreview');
+            if (!cfgPreview) return;
+            cfgPreview.classList.add('hidden');
+            cfgPreview.textContent = '';
+            try {
+                const response = await fetch(`${API_BASE}/snapshots/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    cfgPreview.textContent = JSON.stringify(result.data, null, 2);
+                    cfgPreview.classList.remove('hidden');
+                } else {
+                    cfgPreview.textContent = result.error || 'Config not found in snapshot.';
+                    cfgPreview.classList.remove('hidden');
+                }
+            } catch (e) {
+                cfgPreview.textContent = e.message;
+                cfgPreview.classList.remove('hidden');
+            }
         }
 
         async function createSnapshot() {
