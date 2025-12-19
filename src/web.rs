@@ -47,9 +47,16 @@ pub struct LoadSnapshotRequest {
     pub name: String,
 }
 
+#[derive(Deserialize)]
+pub struct SnapshotConfigRequest {
+    pub name: String,
+}
+
 #[derive(Serialize)]
 pub struct SnapshotInfo {
     pub name: String,
+    pub created_at: Option<String>,
+    pub config_path: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -104,6 +111,7 @@ pub async fn start_web_server(port: u16, config_path: String) -> Result<()> {
         .route("/api/snapshots", get(list_snapshots_api))
         .route("/api/snapshots/create", post(create_snapshot_api))
         .route("/api/snapshots/load", post(load_snapshot_api))
+        .route("/api/snapshots/config", post(get_snapshot_config))
         .route("/api/config", get(get_config))
         .route("/api/configs", get(list_configs))
         .route("/api/configs/select", post(select_config))
@@ -197,7 +205,39 @@ async fn stop_validator(State(state): State<AppState>) -> Json<ApiResponse<Strin
 
 async fn list_snapshots_api() -> Json<ApiResponse<Vec<SnapshotInfo>>> {
     match list_snapshots() {
-        Ok(snapshots) => Json(ApiResponse { success: true, data: Some(snapshots.into_iter().map(|name| SnapshotInfo { name }).collect()), error: None }),
+        Ok(snapshots) => {
+            let details: Vec<SnapshotInfo> = snapshots
+                .into_iter()
+                .map(|name| {
+                    let meta_path = Path::new("snapshots").join(&name).join("metadata.json");
+                    let (created_at, config_path) = if meta_path.exists() {
+                        fs::read_to_string(&meta_path)
+                            .ok()
+                            .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                            .map(|v| {
+                                let created = v
+                                    .get("created_at")
+                                    .and_then(|c| c.as_str())
+                                    .map(|s| s.to_string());
+                                let cfg = v
+                                    .get("config_path")
+                                    .and_then(|c| c.as_str())
+                                    .map(|s| s.to_string());
+                                (created, cfg)
+                            })
+                            .unwrap_or((None, None))
+                    } else {
+                        (None, None)
+                    };
+                    SnapshotInfo {
+                        name,
+                        created_at,
+                        config_path,
+                    }
+                })
+                .collect();
+            Json(ApiResponse { success: true, data: Some(details), error: None })
+        }
         Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
     }
 }
@@ -214,6 +254,22 @@ async fn load_snapshot_api(Json(req): Json<LoadSnapshotRequest>) -> Json<ApiResp
     match load_snapshot(&req.name) {
         Ok(_) => Json(ApiResponse { success: true, data: Some("Loaded".to_string()), error: None }),
         Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+    }
+}
+
+async fn get_snapshot_config(Json(req): Json<SnapshotConfigRequest>) -> Json<ApiResponse<serde_json::Value>> {
+    let path = Path::new("snapshots")
+        .join(&req.name)
+        .join("cadenza-config.json");
+    if !path.exists() {
+        return Json(ApiResponse { success: false, data: None, error: Some("Config not found in snapshot".to_string()) });
+    }
+    match fs::read_to_string(&path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+    {
+        Some(val) => Json(ApiResponse { success: true, data: Some(val), error: None }),
+        None => Json(ApiResponse { success: false, data: None, error: Some("Failed to parse config".to_string()) }),
     }
 }
 
