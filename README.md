@@ -19,6 +19,8 @@ Spinning a Solana node for every iteration is slow and noisy. You burn time re-w
 ### Solution
 Cadenza turns all that ceremony into a single JSON + one command. It boots your local validator (or provisions Devnet), creates wallets, deploys programs, mints tokens, and lets you checkpoint the exact state—then jump back to it instantly. Script it with the CLI or push buttons in the web UI; either way, you get a reproducible lab on demand.
 
+![Cadenza Web UI](docs/images/main_page.png)
+
 ### How it works (fast version)
 1) **Describe** one JSON: cluster, wallets, programs, tokens, ports.  
 2) **Launch** with `cargo run -- start` (or `--no-block`). Devnet? It’ll provision without a local node.  
@@ -34,7 +36,7 @@ cargo build --release
 cp cadenza-config.template.json cadenza-config.json
 
 # start the harness (non-blocking so UI can run)
-cargo run -- start --no-block
+  cargo run -- start --no-block
 
 # launch the web UI
 cargo run -- web --port 8080
