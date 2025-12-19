@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use std::fs;
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -56,6 +57,17 @@ pub struct ConfigSelectRequest {
     pub path: String,
 }
 
+#[derive(Deserialize)]
+pub struct SaveConfigRequest {
+    pub content: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+pub struct CreateConfigRequest {
+    pub name: String,
+    pub content: serde_json::Value,
+}
+
 #[derive(Serialize)]
 pub struct ConfigInfo {
     pub name: String,
@@ -95,6 +107,8 @@ pub async fn start_web_server(port: u16, config_path: String) -> Result<()> {
         .route("/api/config", get(get_config))
         .route("/api/configs", get(list_configs))
         .route("/api/configs/select", post(select_config))
+        .route("/api/config/save", post(save_config))
+        .route("/api/configs/create", post(create_config))
         .fallback_service(ServeDir::new("web"))
         .layer(CorsLayer::permissive())
         .with_state(state);
@@ -116,22 +130,19 @@ async fn get_status(State(state): State<AppState>) -> Json<ApiResponse<StatusRes
     let config = load_config(&config_path).ok();
     let cluster = config.as_ref().map(|c| c.cluster);
 
-    let mut running = match is_validator_running() {
+    let running = match is_validator_running() {
         Ok(run) => run,
         Err(_) => process.is_some(),
     };
 
-    let is_devnet = matches!(cluster, Some(crate::config::Cluster::Devnet));
-    if is_devnet { running = true; }
-
-    let rpc_url = if is_devnet {
-        Some("https://api.devnet.solana.com".to_string())
-    } else if running {
-        match config {
+    let rpc_url = match cluster {
+        Some(crate::config::Cluster::Devnet) => Some("https://api.devnet.solana.com".to_string()),
+        _ if running => match config {
             Some(c) => Some(format!("http://127.0.0.1:{}", c.rpc_port)),
             None => Some("http://127.0.0.1:8899".to_string()),
-        }
-    } else { None };
+        },
+        _ => None,
+    };
 
     Json(ApiResponse { success: true, data: Some(StatusResponse { running, rpc_url, current_config: config_path }), error: None })
 }
@@ -238,4 +249,40 @@ async fn select_config(State(state): State<AppState>, Json(req): Json<ConfigSele
     let mut path = state.config_path.write().unwrap();
     *path = req.path.clone();
     Json(ApiResponse { success: true, data: Some("Switched".to_string()), error: None })
+}
+
+async fn save_config(State(state): State<AppState>, Json(req): Json<SaveConfigRequest>) -> Json<ApiResponse<String>> {
+    let path = state.config_path.read().unwrap().clone();
+    match serde_json::to_string_pretty(&req.content) {
+        Ok(serialized) => {
+            if let Err(e) = fs::write(&path, serialized) {
+                return Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) });
+            }
+            Json(ApiResponse { success: true, data: Some("Saved".to_string()), error: None })
+        }
+        Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+    }
+}
+
+async fn create_config(State(state): State<AppState>, Json(req): Json<CreateConfigRequest>) -> Json<ApiResponse<String>> {
+    if req.name.is_empty() || req.name.contains('/') || req.name.contains('\\') {
+        return Json(ApiResponse { success: false, data: None, error: Some("Invalid name".to_string()) });
+    }
+
+    let filename = if req.name.ends_with(".json") { req.name.clone() } else { format!("{}.json", req.name) };
+    if Path::new(&filename).exists() {
+        return Json(ApiResponse { success: false, data: None, error: Some("File already exists".to_string()) });
+    }
+
+    match serde_json::to_string_pretty(&req.content) {
+        Ok(serialized) => {
+            if let Err(e) = fs::write(&filename, serialized) {
+                return Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) });
+            }
+            let mut path = state.config_path.write().unwrap();
+            *path = filename.clone();
+            Json(ApiResponse { success: true, data: Some(filename), error: None })
+        }
+        Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
+    }
 }
