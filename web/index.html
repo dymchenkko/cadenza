@@ -118,6 +118,9 @@
 
         .section-header h2 { font-size: 1.875rem; font-weight: 600; letter-spacing: -0.025em; }
         .section-header p { color: var(--text-dim); margin-top: 4px; }
+        .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .mode-toggle button { padding: 10px 12px; font-size: 0.9rem; width: 100%; justify-content: center; }
+        .mode-toggle .active { background-color: var(--primary); color: white; border-color: var(--primary); }
 
         /* Cards */
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
@@ -308,9 +311,15 @@
                 <div class="section-header">
                     <div>
                         <h2>Dashboard</h2>
-                        <p>Control center for your Solana dev cluster.</p>
                     </div>
                     <div id="statusBadgeContainer"></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div class="mode-toggle">
+                        <button id="modeConfigsBtn" class="btn-outline active">Configs</button>
+                        <button id="modeSnapshotsBtn" class="btn-outline">Snapshots</button>
+                    </div>
                 </div>
 
                 <div class="grid">
@@ -323,7 +332,7 @@
                         </div>
                     </div>
 
-                    <div class="card">
+                    <div class="card" id="snapshotsCard">
                         <div class="card-title">Snapshots</div>
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="snapshotName" placeholder="checkpoint_name">
@@ -333,13 +342,13 @@
                         <button id="loadSnapshotBtn" class="btn-primary" style="width: 100%;">Load Selected</button>
                     </div>
 
-                    <div class="card">
+                    <div class="card" id="configProfilesCard">
                         <div class="card-title">Config Profiles</div>
                         <p style="font-size: 0.875rem; color: var(--text-dim);">Pick which config file the orchestrator should use.</p>
                         <div id="configListMain" class="snapshot-list" style="max-height: 260px;"></div>
                     </div>
 
-                    <div class="card" style="grid-column: span 2;">
+                    <div class="card" id="configEditorCard" style="grid-column: span 2;">
                         <div class="card-title">
                             Configuration
                             <div class="btn-group">
@@ -421,6 +430,7 @@
         let selectedSnapshot = null;
         let currentConfig = null;
         let isNewConfig = false;
+        let mode = 'configs';
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -662,11 +672,14 @@
         document.getElementById('saveAsConfigBtn').onclick = saveConfigAs;
         document.getElementById('createSnapshotBtn').onclick = createSnapshot;
         document.getElementById('loadSnapshotBtn').onclick = loadSnapshot;
+        document.getElementById('modeConfigsBtn').onclick = () => setMode('configs');
+        document.getElementById('modeSnapshotsBtn').onclick = () => setMode('snapshots');
 
         checkStatus();
         loadConfig();
         loadConfigs();
         loadSnapshots();
+        setMode('configs');
         setInterval(checkStatus, 5000);
 
         async function saveConfig() {
@@ -734,6 +747,16 @@
             document.getElementById('configEditor').value = JSON.stringify(template, null, 2);
             document.getElementById('activeConfigLabel').textContent = 'unsaved (Save As)';
             showToast('Started a new config. Use Save As to persist.');
+        }
+
+        function setMode(nextMode) {
+            mode = nextMode;
+            const showConfigs = mode === 'configs';
+            document.getElementById('snapshotsCard').classList.toggle('hidden', showConfigs);
+            document.getElementById('configProfilesCard').classList.toggle('hidden', !showConfigs);
+            document.getElementById('configEditorCard').classList.toggle('hidden', !showConfigs);
+            document.getElementById('modeConfigsBtn').classList.toggle('active', showConfigs);
+            document.getElementById('modeSnapshotsBtn').classList.toggle('active', !showConfigs);
         }
     </script>
 </body>
