@@ -21,6 +21,7 @@
             --accent: #38bdf8;
             --font-main: 'Inter', -apple-system, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
+            --logs-height: 280px;
         }
 
         * {
@@ -35,7 +36,9 @@
             color: var(--text);
             line-height: 1.5;
             min-height: 100vh;
+            padding-bottom: 0;
         }
+        .with-logs { padding-bottom: var(--logs-height); }
 
         .hidden { display: none !important; }
 
@@ -176,7 +179,7 @@
             font-family: var(--font-mono);
             font-size: 0.8125rem;
             color: #d1d5db;
-            height: 600px;
+            height: calc(var(--logs-height) - 110px);
             overflow-y: auto;
             line-height: 1.6;
         }
@@ -291,6 +294,49 @@
             display: inline-block; animation: rotation 1s linear infinite;
         }
         @keyframes rotation { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* Docked logs */
+        .logs-dock {
+            position: fixed;
+            left: 280px;
+            right: 0;
+            bottom: 0;
+            padding: 0 40px 20px 40px;
+            background: linear-gradient(180deg, rgba(15,23,42,0.92) 0%, rgba(15,23,42,0.98) 35%, rgba(15,23,42,1) 100%);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -12px 28px rgba(0,0,0,0.35);
+            z-index: 900;
+            height: var(--logs-height);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .logs-dock .card {
+            width: 100%;
+            margin: 0;
+            flex: 1;
+        }
+        .logs-resizer {
+            height: 10px;
+            cursor: ns-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.7rem;
+        }
+        .logs-resizer::before {
+            content: '';
+            width: 48px;
+            height: 4px;
+            border-radius: 999px;
+            background: var(--border);
+            opacity: 0.8;
+        }
+
+        @media (max-width: 900px) {
+            .logs-dock { left: 0; padding: 0 16px 16px 16px; }
+        }
     </style>
 </head>
 <body>
@@ -304,10 +350,6 @@
                 <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item active">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                     Dashboard
-                </button>
-                <button onclick="switchView('logs')" id="nav-logs" class="nav-item">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><polyline points="13 2 13 9 20 9"></polyline></svg>
-                    Validator Logs
                 </button>
                 <button onclick="switchView('explorer')" id="nav-explorer" class="nav-item">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -381,20 +423,16 @@
                 </div>
             </section>
 
-            <!-- Logs View -->
-            <section id="logs-view" class="view-section hidden">
-                <div class="section-header">
-                    <div>
-                        <h2>Validator Logs</h2>
-                        <p>Real-time output from the test validator process.</p>
+            <div class="logs-dock">
+                <div class="logs-resizer" id="logsResizer"></div>
+                <div class="card">
+                    <div class="card-title">Validator Logs</div>
+                    <div class="console" id="logConsole">
+                        <div class="log-line"><span class="log-ts">[${new Date().toLocaleTimeString()}]</span> <span class="log-info">INFO:</span> Logs will appear here when the validator is started.</div>
+                        <div class="log-line"><span class="log-ts">[${new Date().toLocaleTimeString()}]</span> <span class="log-info">NOTE:</span> Currently showing process lifecycle events.</div>
                     </div>
                 </div>
-                <div class="console" id="logConsole">
-                    <div class="log-line"><span class="log-ts">[${new Date().toLocaleTimeString()}]</span> <span class="log-info">INFO:</span> Logs will appear here when the validator is started.</div>
-                    <div class="log-line"><span class="log-ts">[${new Date().toLocaleTimeString()}]</span> <span class="log-info">NOTE:</span> Currently showing process lifecycle events.</div>
-                </div>
-            </section>
-
+            </div>
             <!-- Explorer View -->
             <section id="explorer-view" class="view-section hidden">
                 <div class="section-header">
@@ -451,6 +489,9 @@
         let mode = 'configs';
         let isRunning = false;
         let toggleBusy = false;
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 0;
 
         function showToast(message, type = 'success') {
             const toast = document.getElementById('toast');
@@ -476,6 +517,11 @@
             
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById(`nav-${viewId}`).classList.add('active');
+
+            const showLogs = viewId === 'dashboard';
+            document.body.classList.toggle('with-logs', showLogs);
+            const dock = document.querySelector('.logs-dock');
+            if (dock) dock.classList.toggle('hidden', !showLogs);
         }
 
         async function checkStatus() {
@@ -722,6 +768,12 @@
         document.getElementById('loadSnapshotBtn').onclick = loadSnapshot;
         document.getElementById('modeConfigsBtn').onclick = () => setMode('configs');
         document.getElementById('modeSnapshotsBtn').onclick = () => setMode('snapshots');
+        const logsResizer = document.getElementById('logsResizer');
+        if (logsResizer) {
+            logsResizer.addEventListener('mousedown', startResize);
+            document.addEventListener('mousemove', onResize);
+            document.addEventListener('mouseup', stopResize);
+        }
 
         checkStatus();
         loadConfig();
@@ -729,6 +781,7 @@
         loadSnapshots();
         setMode('configs');
         setInterval(checkStatus, 5000);
+        switchView('dashboard');
 
         async function saveConfig() {
             if (isNewConfig) {
@@ -805,6 +858,25 @@
             document.getElementById('configEditorCard').classList.toggle('hidden', !showConfigs);
             document.getElementById('modeConfigsBtn').classList.toggle('active', showConfigs);
             document.getElementById('modeSnapshotsBtn').classList.toggle('active', !showConfigs);
+        }
+
+        function startResize(e) {
+            isResizing = true;
+            startY = e.clientY;
+            const current = getComputedStyle(document.documentElement).getPropertyValue('--logs-height').trim();
+            startHeight = parseInt(current || '280', 10);
+            e.preventDefault();
+        }
+
+        function onResize(e) {
+            if (!isResizing) return;
+            const delta = startY - e.clientY;
+            const next = Math.min(Math.max(startHeight + delta, 180), 700);
+            document.documentElement.style.setProperty('--logs-height', `${next}px`);
+        }
+
+        function stopResize() {
+            isResizing = false;
         }
     </script>
 </body>
