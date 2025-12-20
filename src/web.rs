@@ -244,7 +244,8 @@ async fn list_snapshots_api() -> Json<ApiResponse<Vec<SnapshotInfo>>> {
 
 async fn create_snapshot_api(State(state): State<AppState>, Json(req): Json<SnapshotRequest>) -> Json<ApiResponse<String>> {
     let config_path = state.config_path.read().unwrap().clone();
-    match create_snapshot(&req.name, &config_path) {
+    // Web UI currently does not support overwrite, defaulting to false
+    match create_snapshot(&req.name, &config_path, false) {
         Ok(_) => Json(ApiResponse { success: true, data: Some("Created".to_string()), error: None }),
         Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
     }
