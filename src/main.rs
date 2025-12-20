@@ -3,7 +3,6 @@ use crate::snapshot::{create_snapshot, list_snapshots, load_snapshot};
 use crate::web::start_web_server;
 use anyhow::{Context, Result};
 use clap::{CommandFactory, Parser, Subcommand};
-use std::io::{self, Write};
 use tokio::signal;
 
 mod config;
@@ -91,48 +90,6 @@ async fn main() -> Result<()> {
 
                 let _ = child.wait().await;
                 println!("✅ Validator stopped.");
-
-                // Prompt for snapshot
-                print!("\nDo you want to create a snapshot of the current state? [y/N] ");
-                io::stdout().flush().context("Failed to flush stdout")?;
-
-                let mut input = String::new();
-                io::stdin().read_line(&mut input).context("Failed to read input")?;
-
-                if input.trim().eq_ignore_ascii_case("y") || input.trim().eq_ignore_ascii_case("yes") {
-                    print!("Enter snapshot name: ");
-                    io::stdout().flush().context("Failed to flush stdout")?;
-
-                    let mut name = String::new();
-                    io::stdin().read_line(&mut name).context("Failed to read input")?;
-                    let name = name.trim();
-
-                    if !name.is_empty() {
-                        let snapshots = list_snapshots().unwrap_or_default();
-                        let mut overwrite = false;
-
-                        if snapshots.contains(&name.to_string()) {
-                            print!("Snapshot '{}' already exists. Overwrite? [y/N] ", name);
-                            io::stdout().flush().context("Failed to flush stdout")?;
-                            let mut confirm = String::new();
-                            io::stdin().read_line(&mut confirm).context("Failed to read input")?;
-                            if confirm.trim().eq_ignore_ascii_case("y")
-                                || confirm.trim().eq_ignore_ascii_case("yes")
-                            {
-                                overwrite = true;
-                            } else {
-                                println!("Snapshot creation cancelled.");
-                                return Ok(());
-                            }
-                        }
-
-                        if let Err(e) = create_snapshot(name, &config_path, overwrite) {
-                            println!("❌ Failed to create snapshot: {e}");
-                        }
-                    } else {
-                        println!("Snapshot name cannot be empty.");
-                    }
-                }
             } else {
                 println!(
                     "Cadenza finished provisioning on remote cluster; no local validator to manage."
@@ -141,7 +98,7 @@ async fn main() -> Result<()> {
         }
         Commands::Snapshot { name, config_path } => {
             println!("Creating snapshot: {name}");
-            create_snapshot(&name, &config_path, false)?;
+            create_snapshot(&name, &config_path)?;
         }
         Commands::Load { name } => {
             println!("Loading state from snapshot: {name}");

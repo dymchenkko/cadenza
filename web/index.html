@@ -680,6 +680,9 @@
                     if (status.current_config) {
                         document.getElementById('activeConfigLabel').textContent = status.current_config;
                     }
+                    // Disable snapshot creation while validator is running
+                    const createBtn = document.getElementById('createSnapshotBtn');
+                    if (createBtn) createBtn.disabled = isRunning;
                 }
             } catch (e) { console.error(e); }
         }
@@ -761,6 +764,8 @@
                 if (result.success) {
                     showToast('Shutdown successful');
                     addLog('Validator stopped.', 'success');
+                    // After shutdown, offer to create or update a snapshot
+                    showSnapshotOffer();
                 } else {
                     showToast(result.error, 'error');
                     addLog(result.error, 'danger');
@@ -787,6 +792,9 @@
             const hint = document.getElementById('nodeStateHint');
             if (!btn || !hint) return;
             btn.disabled = toggleBusy;
+            // also disable create snapshot while running
+            const createBtn = document.getElementById('createSnapshotBtn');
+            if (createBtn) createBtn.disabled = isRunning || toggleBusy;
             if (isRunning) {
                 btn.textContent = 'Shutdown';
                 btn.classList.remove('run');
@@ -909,6 +917,7 @@
         }
 
         async function createSnapshot() {
+            if (isRunning) return showToast('Stop the validator before creating a snapshot', 'error');
             const name = document.getElementById('snapshotName').value.trim();
             if (!name) return showToast('Provide a name', 'error');
             try {
@@ -923,6 +932,53 @@
                     loadSnapshots();
                 } else showToast(result.error, 'error');
             } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function createSnapshotWithOverwrite(name, overwrite = false) {
+            if (!name) return showToast('No snapshot name provided', 'error');
+            try {
+                const response = await fetch(`${API_BASE}/snapshots/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, overwrite })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast(overwrite ? 'Snapshot updated' : 'Snapshot created');
+                    loadSnapshots();
+                } else showToast(result.error, 'error');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+
+        async function showSnapshotOffer() {
+            // Ask the user if they'd like to save a snapshot after shutdown.
+            try {
+                const confirmSave = confirm('Shutdown complete. Would you like to save a snapshot now?');
+                if (!confirmSave) return;
+
+                // fetch existing snapshots to check for name collisions
+                const resp = await fetch(`${API_BASE}/snapshots`);
+                const listRes = await resp.json();
+                const existing = (listRes.success && listRes.data) ? listRes.data.map(s => s.name) : [];
+
+                const defaultName = selectedSnapshot || `snapshot-${Date.now()}`;
+                const name = prompt('Enter snapshot name:', defaultName);
+                if (!name) return;
+
+                const exists = existing.includes(name);
+                if (exists) {
+                    const overwrite = confirm(`Snapshot "${name}" already exists. Click OK to overwrite it, Cancel to keep existing.`);
+                    if (!overwrite) {
+                        showToast('Snapshot not overwritten');
+                        return;
+                    }
+                    await createSnapshotWithOverwrite(name, true);
+                } else {
+                    await createSnapshotWithOverwrite(name, false);
+                }
+            } catch (e) {
+                showToast(e.message, 'error');
+            }
         }
 
         async function loadSnapshot() {

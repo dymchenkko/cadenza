@@ -16,7 +16,7 @@ struct SnapshotMetadata {
 }
 
 /// Creates a snapshot of the current ledger state and configuration
-pub fn create_snapshot(name: &str, config_path: &str, overwrite: bool) -> Result<()> {
+pub fn create_snapshot(name: &str, config_path: &str) -> Result<()> {
     validate_snapshot_name(name)?;
 
     if is_validator_running()? {
@@ -33,13 +33,9 @@ pub fn create_snapshot(name: &str, config_path: &str, overwrite: bool) -> Result
 
     let snapshot_dir = PathBuf::from(SNAPSHOTS_DIR).join(name);
     if snapshot_dir.exists() {
-        if !overwrite {
-            return Err(anyhow::anyhow!(
-                "Snapshot '{name}' already exists. Use a different name or delete the existing snapshot first."
-            ));
-        }
-        println!("⚠️  Overwriting existing snapshot '{name}'...");
-        fs::remove_dir_all(&snapshot_dir).context("Failed to remove existing snapshot")?;
+        return Err(anyhow::anyhow!(
+            "Snapshot '{name}' already exists. Use a different name or delete the existing snapshot first."
+        ));
     }
     fs::create_dir_all(&snapshot_dir).context("Failed to create snapshot directory")?;
 

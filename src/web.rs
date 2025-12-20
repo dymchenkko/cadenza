@@ -40,6 +40,7 @@ pub struct StatusResponse {
 #[derive(Deserialize)]
 pub struct SnapshotRequest {
     pub name: String,
+    pub overwrite: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -244,8 +245,15 @@ async fn list_snapshots_api() -> Json<ApiResponse<Vec<SnapshotInfo>>> {
 
 async fn create_snapshot_api(State(state): State<AppState>, Json(req): Json<SnapshotRequest>) -> Json<ApiResponse<String>> {
     let config_path = state.config_path.read().unwrap().clone();
-    // Web UI currently does not support overwrite, defaulting to false
-    match create_snapshot(&req.name, &config_path, false) {
+    // If overwrite was requested and snapshot exists, remove it first
+    let snapshot_dir = Path::new("snapshots").join(&req.name);
+    if req.overwrite.unwrap_or(false) && snapshot_dir.exists() {
+        if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
+            return Json(ApiResponse { success: false, data: None, error: Some(format!("Failed to remove existing snapshot: {}", e)) });
+        }
+    }
+
+    match create_snapshot(&req.name, &config_path) {
         Ok(_) => Json(ApiResponse { success: true, data: Some("Created".to_string()), error: None }),
         Err(e) => Json(ApiResponse { success: false, data: None, error: Some(e.to_string()) }),
     }
