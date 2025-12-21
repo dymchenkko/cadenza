@@ -57,3 +57,14 @@ cargo run -- web --port 8080
 ## 📄 License
 MIT License (see [LICENSE](./LICENSE)).
 
+---
+---
+
+## 🎬 Demo video
+
+Watch a short demo of the web UI and snapshot workflow here:
+
+[Demo: Cadenza web UI walkthrough](https://youtu.be/rNWGcZGiuHg)
+
+The video shows starting/stopping the validator, the post-shutdown snapshot prompt, creating/updating snapshots, and restoring a snapshot to reproduce a development state.
+
